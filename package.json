@@ -1,0 +1,20 @@
+{
+  "name": "js1k-wasm",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "devDependencies": {
+    "wabt": "^1.0.8"
+  },
+  "scripts": {
+    "start": "python -m SimpleHTTPServer 8080",
+    "build": "yarn build:uglify && yarn build:inject && yarn build:profile",
+    "build:wasm": "emcc -O3 -s WASM=1 main.c -o main.wasm -s NO_EXIT_RUNTIME=1  -s EXTRA_EXPORTED_RUNTIME_METHODS='[\"ccall\"]'",
+    "build:uglify": "uglifyjs --toplevel -c toplevel --mangle reserved=[c,m] --output=source.js -- src.js",
+    "build:inject": "node convert.js",
+    "build:profile": "wc -c source.js"
+  },
+  "dependencies": {
+    "uglify-es": "^3.3.9"
+  }
+}
