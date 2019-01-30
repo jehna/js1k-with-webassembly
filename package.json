@@ -7,7 +7,9 @@
     "wabt": "^1.0.8"
   },
   "scripts": {
-    "start": "python -m SimpleHTTPServer 8080",
+    "start": "yarn build && yarn start:server",
+    "start:server": "python -m SimpleHTTPServer 8080",
+    "dev": "nodemon -e wat,js --ignore source.js --exec yarn start",
     "build": "yarn build:uglify && yarn build:inject && yarn build:profile",
     "build:wasm": "emcc -O3 -s WASM=1 main.c -o main.wasm -s NO_EXIT_RUNTIME=1  -s EXTRA_EXPORTED_RUNTIME_METHODS='[\"ccall\"]'",
     "build:uglify": "uglifyjs --toplevel -c toplevel --mangle reserved=[c,m] --output=source.js -- src.js",
@@ -15,6 +17,7 @@
     "build:profile": "wc -c source.js"
   },
   "dependencies": {
+    "nodemon": "^1.18.9",
     "uglify-es": "^3.3.9"
   }
 }
