@@ -167,8 +167,7 @@ Color trace(Ray ray, bool depth)
   return surface(ray, objects[hit.sphereIndex], intersection, sphereNormal(objects[hit.sphereIndex], intersection));
 };
 
-static int width = 500;
-static int height = 500;
+static int SIZE = 500;
 
 #ifdef __cplusplus
 extern "C"
@@ -176,21 +175,24 @@ extern "C"
 #endif
 
   int EMSCRIPTEN_KEEPALIVE
-  r(int x, int y)
+  r(int index)
   {
     Vector3 eyeVector = normalize(Camera::main.direction - Camera::main.position);
     Vector3 localRight = normalize(crossProduct(eyeVector, Vector3::up));
     Vector3 localUp = normalize(crossProduct(localRight, eyeVector));
 
     float fovRadians = M_PI * (Camera::main.fieldOfView / 2.) / 180.;
-    float heightWidthRatio = height / width;
+    float heightWidthRatio = SIZE / SIZE;
     float halfWidth = tan(fovRadians);
     float halfHeight = heightWidthRatio * halfWidth;
     float camerawidth = halfWidth * 2.;
     float cameraheight = halfHeight * 2.;
-    float pixelWidth = camerawidth / (width - 1);
-    float pixelHeight = cameraheight / (height - 1);
+    float pixelWidth = camerawidth / (SIZE - 1);
+    float pixelHeight = cameraheight / (SIZE - 1);
 
+    int pos = index / 4;
+    int x = pos / SIZE;
+    int y = pos % SIZE;
     Vector3 xComp = scale(localRight, (x * pixelWidth) - halfWidth);
     Vector3 yComp = scale(localUp, (y * pixelHeight) - halfHeight);
 
@@ -200,10 +202,17 @@ extern "C"
 
     Color result = trace(ray, false);
 
-    int r = result.r;
-    int g = result.g;
-    int b = result.b;
-    return (r & 255) << 16 | (g & 255) << 8 | (b & 255);
+    switch (index % 4)
+    {
+    case 0:
+      return result.r;
+    case 1:
+      return result.g;
+    case 2:
+      return result.b;
+    case 3:
+      return 255;
+    }
   }
 
 #ifdef __cplusplus
