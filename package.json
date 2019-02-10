@@ -10,7 +10,7 @@
     "start": "yarn build && yarn start:server",
     "start:server": "python -m SimpleHTTPServer 8080",
     "dev": "nodemon -e wat,js,c,cpp --ignore source.js --ignore main.temp.asm.js --exec yarn start",
-    "build": "yarn build:uglify && yarn build:wasm && yarn build:inject && yarn build:crush && yarn build:profile",
+    "build": "yarn build:uglify && yarn build:wasm && yarn build:inject && yarn build:profile",
     "build:wasm": "em++ -O3 --llvm-lto 1 -s WASM=1 main.cpp -o main.wasm -s NO_EXIT_RUNTIME=1 -s ERROR_ON_UNDEFINED_SYMBOLS=0",
     "build:uglify": "uglifyjs --toplevel -c toplevel --mangle reserved=[c,m] --output=source.js -- src.js",
     "build:crush": "npx regpack source.js --crushGainFactor 3 --crushLengthFactor 0 --crushCopiesFactor 1  > source.js.crushed; mv source.js.crushed source.js",
