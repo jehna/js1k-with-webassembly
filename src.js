@@ -10,13 +10,7 @@ var r = (x, y, color) => {
 var Wasm = WebAssembly;
 
 Wasm.compile(Uint8Array.from(atob(b), c => c.charCodeAt(0)))
-  .then(module =>
-    Wasm.instantiate(module, {
-      env: {
-        memory: new Wasm.Memory({ initial: 256, maximum: 256 })
-      }
-    })
-  )
+  .then(Wasm.instantiate)
   .then(m => {
     for (let x = 0; x < SIZE; x++) {
       for (let y = 0; y < SIZE; y++) {

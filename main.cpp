@@ -77,13 +77,7 @@ static Sphere objects[] = {
      .specular = 0.2,
      .lambert = 0.7,
      .ambient = 0.1,
-     .radius = 3.},
-    {.position = {-4., 2, -1.},
-     .color = {155, 155, 155},
-     .specular = 0.1,
-     .lambert = 0.9,
-     .ambient = 0.0,
-     .radius = 0.2}};
+     .radius = 3.}};
 
 float NO_HIT = 999999999;
 
@@ -118,17 +112,8 @@ Hit rayCast(Ray ray)
   return closest;
 };
 
-bool isLightVisible(Vector3 position, Vector3 light)
-{
-  Ray ray = {
-      position,
-      normalize(position - light)};
-  Hit hit = rayCast(ray);
-  return hit.distance > -0.005;
-}
-
-Color trace(Ray ray, int depth);
-Color surface(Ray ray, Sphere object, Vector3 intersection, Vector3 normal, int depth)
+Color trace(Ray ray, bool depth);
+Color surface(Ray ray, Sphere object, Vector3 intersection, Vector3 normal)
 {
   float lambertAmount = 0;
   Color result = {0, 0, 0};
@@ -138,8 +123,6 @@ Color surface(Ray ray, Sphere object, Vector3 intersection, Vector3 normal, int 
     for (int i = 0; i < sizeof(lights) / sizeof(Vector3); i++)
     {
       Vector3 lightPoint = lights[i];
-      if (!isLightVisible(intersection, lightPoint))
-        continue;
 
       float contribution = dotProduct(normalize(lightPoint - intersection), normal);
       if (contribution > 0)
@@ -152,12 +135,12 @@ Color surface(Ray ray, Sphere object, Vector3 intersection, Vector3 normal, int 
     Ray reflectedRay = {
         intersection,
         reflectThrough(ray.direction, normal)};
-    Color reflectedColor = trace(reflectedRay, depth + 1);
+    Color reflectedColor = trace(reflectedRay, true);
 
     result = result + (reflectedColor * object.specular);
   }
 
-  lambertAmount = fmin(1, lambertAmount);
+  lambertAmount = lambertAmount > 1 ? 1 : lambertAmount;
 
   return result + (object.color * (lambertAmount * object.lambert)) + (object.color * object.ambient);
 }
@@ -167,9 +150,9 @@ Vector3 sphereNormal(Sphere sphere, Vector3 pos)
   return normalize(pos - sphere.position);
 }
 
-Color trace(Ray ray, int depth)
+Color trace(Ray ray, bool depth)
 {
-  if (depth > 3)
+  if (depth)
   {
     return Color::white;
   }
@@ -181,7 +164,7 @@ Color trace(Ray ray, int depth)
   }
 
   Vector3 intersection = ray.position + scale(ray.direction, hit.distance);
-  return surface(ray, objects[hit.sphereIndex], intersection, sphereNormal(objects[hit.sphereIndex], intersection), depth);
+  return surface(ray, objects[hit.sphereIndex], intersection, sphereNormal(objects[hit.sphereIndex], intersection));
 };
 
 static int width = 500;
@@ -215,11 +198,11 @@ extern "C"
         .position = Camera::main.position,
         .direction = normalize(eyeVector + xComp + yComp)};
 
-    Color result = trace(ray, 0);
+    Color result = trace(ray, false);
 
-    int r = fmin(255, result.r);
-    int g = fmin(255, result.g);
-    int b = fmin(255, result.b);
+    int r = result.r;
+    int g = result.g;
+    int b = result.b;
     return (r & 255) << 16 | (g & 255) << 8 | (b & 255);
   }
 

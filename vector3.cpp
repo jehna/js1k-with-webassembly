@@ -1,5 +1,10 @@
 #include <math.h>
 
+/*extern "C"
+{
+  float R(float input);
+}*/
+
 struct Vector3
 {
   float x;
@@ -25,11 +30,6 @@ struct Vector3
         y - value.y,
         z - value.z};
     return result;
-  };
-
-  float length()
-  {
-    return sqrt(x * x + y * y + z * z);
   };
 };
 
