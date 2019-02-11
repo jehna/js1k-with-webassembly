@@ -14,6 +14,7 @@ struct Color
   float b;
 
   static Color white;
+  static Color sky;
 
   Color operator*(const float &value) const
   {
@@ -34,7 +35,13 @@ struct Color
   };
 };
 
+Color lerp(Color a, Color b, float percent)
+{
+  return a * percent + b * (1 - percent);
+}
+
 Color Color::white = {255, 255, 255};
+Color Color::sky = {5, 35, 84};
 
 struct Camera
 {
@@ -160,12 +167,18 @@ Vector3 normalAtPosition(Vector3 position)
   return normalize(normal);
 }
 
+Color addFogAtDistance(Color c, float distance)
+{
+  return lerp(c, Color::sky, 24 / distance);
+}
+
 Color colorAtTerrainPoint(Ray ray, float hitDistance)
 {
   const Vector3 hitPoint = ray.position + ray.direction * hitDistance;
   const Vector3 normal = normalAtPosition(hitPoint);
   const Color shading = getShadingAtPosition(hitPoint, normal);
-  return shading;
+  const Color withFog = addFogAtDistance(shading, hitDistance);
+  return withFog;
 }
 
 bool rayCast(Ray ray, float &hitDistance)
@@ -190,19 +203,19 @@ Color trace(Ray ray, bool depth)
 {
   if (depth)
   {
-    return Color::white;
+    return Color::sky;
   }
 
   float hitDistance;
   if (!rayCast(ray, hitDistance))
   {
-    return Color::white;
+    return Color::sky;
   }
 
   return colorAtTerrainPoint(ray, hitDistance);
 };
 
-static int SIZE = 500;
+static int SIZE = 240;
 
 #ifdef __cplusplus
 extern "C"

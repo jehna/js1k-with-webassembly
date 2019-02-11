@@ -1,4 +1,4 @@
-var SIZE = 500;
+var SIZE = 240;
 var Wasm = WebAssembly;
 
 Wasm.instantiateStreaming(fetch`data:application/wasm;base64,WASM_HERE`, {
