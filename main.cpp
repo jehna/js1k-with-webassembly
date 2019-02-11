@@ -14,6 +14,7 @@ struct Color
   float b;
 
   static Color white;
+  static Color sky;
 
   Color operator*(const float &value) const
   {
@@ -34,7 +35,13 @@ struct Color
   };
 };
 
+Color lerp(Color a, Color b, float percent)
+{
+  return a * percent + b * (1 - percent);
+}
+
 Color Color::white = {255, 255, 255};
+Color Color::sky = {5, 35, 84};
 
 struct Camera
 {
@@ -46,9 +53,9 @@ struct Camera
 };
 
 Camera Camera::main = {
-    .position = {0., 1.8, 10.},
+    .position = {0, 30, 0},
     .fieldOfView = 45.,
-    .direction = {0., 3., 0.}};
+    .direction = {10, 25, 10}};
 
 struct Sphere
 {
@@ -66,108 +73,149 @@ struct Hit
   int sphereIndex;
 };
 
-static Vector3 lights[] = {
-    {-30.,
-     -10.,
-     20.}};
+static int lookupTable[] = {74, 23, 40, 35, 27, 15, 42, 8, 29, 7, 19, 3, 28, 18, 13, 17, 77, 94, 76, 16, 83, 72, 31, 9, 91, 22, 2, 85, 20, 1, 89, 95, 87, 26, 92, 30, 80, 103, 125, 88, 119, 4, 69, 124, 86, 108, 24, 112, 115, 106, 6, 123, 10, 25, 55, 60, 113, 73, 61, 51, 122, 107, 5, 96, 64, 0, 90, 34, 110, 59, 14, 97, 65, 11, 12, 120, 67, 46, 126, 104, 50, 53, 98, 56, 38, 36, 105, 62, 49, 109, 45, 66, 52, 44, 58, 127, 71, 63, 68, 82, 114, 57, 79, 99, 118, 48, 100, 81, 37, 101, 33, 84, 70, 75, 78, 54, 41, 47, 117, 43, 102, 116, 39, 111, 121, 21, 32, 93};
+const int tableLength = sizeof(lookupTable) / sizeof(int);
 
-static Sphere objects[] = {
-    {.position = {0., 3.5, -3.},
-     .color = {255, 200, 155},
-     .specular = 0.2,
-     .lambert = 0.7,
-     .ambient = 0.1,
-     .radius = 3.}};
-
-float NO_HIT = 999999999;
-
-float sphereIntersection(Sphere sphere, Ray ray)
+int lookup(int index)
 {
-  Vector3 eye_to_center = sphere.position - ray.position;
-  float v = dotProduct(eye_to_center, ray.direction);
-  float eoDot = dotProduct(eye_to_center, eye_to_center);
-  float discriminant = (sphere.radius * sphere.radius) - eoDot + (v * v);
-
-  if (discriminant < 0)
-  {
-    return NO_HIT;
-  }
-
-  return v - sqrt(discriminant);
+  return lookupTable[index % tableLength];
 }
 
-Hit rayCast(Ray ray)
+float fade(const float value)
 {
-  Hit closest = {NO_HIT, NULL};
-  for (int i = 0; i < sizeof(objects) / sizeof(Sphere); i++)
+  return value * value * value * (value * (value * 6 - 15) + 10);
+}
+
+float grad(int hash, float x, float y)
+{
+  switch (hash & 3)
   {
-    Sphere object = objects[i];
-    float dist = sphereIntersection(object, ray);
-    if (dist != NO_HIT && dist < closest.distance)
+  case 0:
+    return x + y;
+  case 1:
+    return -x + y;
+  case 2:
+    return x - y;
+  case 3:
+    return -x - y;
+  default:
+    return 0; // never happens
+  }
+}
+
+float lerp(float from, float to, float percent)
+{
+  return from + percent * (to - from);
+}
+
+float noise(const float x, const float y)
+{
+
+  int xi = (int)x;
+  int yi = (int)y;
+  float xx = x - xi;
+  float yy = y - yi;
+  float fx = fade(xx);
+  float fy = fade(yy);
+
+  int aa = lookup(lookup(xi) + yi);
+  int ab = lookup(lookup(xi) + yi + 1);
+  int ba = lookup(lookup(xi + 1) + yi);
+  int bb = lookup(lookup(xi + 1) + yi + 1);
+
+  float x1 = lerp(grad(aa, xx, yy),
+                  grad(ba, xx - 1, yy),
+                  fx);
+  float x2 = lerp(grad(ab, xx, yy - 1),
+                  grad(bb, xx - 1, yy - 1),
+                  fx);
+  float value = lerp(x1, x2, fy);
+
+  return (value + 1) / 2;
+}
+
+float coolnoise(float x, float y)
+{
+  return noise(x / 20, y / 20) +
+         noise(x / 10, y / 10) / 2 +
+         noise(x / 5, y / 5) / 6 +
+         noise(x / 2, y / 2) / 20;
+}
+
+float surfaceHeightAtPoint(float x, float y)
+{
+  return coolnoise(x, y) * 20;
+}
+
+const float eps = 0.01;
+
+Color getShadingAtPosition(Vector3 position, Vector3 normal)
+{
+  const Vector3 sun = {-1, -0.5, 0};
+  const Vector3 v3Intensity = sun - normal;
+  const float intensity = dotProduct(v3Intensity, v3Intensity);
+  const Color terrainColor = {100, 20, 20};
+  return terrainColor * (intensity * intensity / 3);
+}
+
+Vector3 normalAtPosition(Vector3 position)
+{
+  Vector3 normal = {
+      surfaceHeightAtPoint(position.x - eps, position.z) - surfaceHeightAtPoint(position.x + eps, position.z),
+      2.0f * eps,
+      surfaceHeightAtPoint(position.x, position.z - eps) - surfaceHeightAtPoint(position.x, position.z + eps)};
+  return normalize(normal);
+}
+
+Color addFogAtDistance(Color c, float distance)
+{
+  return lerp(c, Color::sky, 24 / distance);
+}
+
+Color colorAtTerrainPoint(Ray ray, float hitDistance)
+{
+  const Vector3 hitPoint = ray.position + ray.direction * hitDistance;
+  const Vector3 normal = normalAtPosition(hitPoint);
+  const Color shading = getShadingAtPosition(hitPoint, normal);
+  const Color withFog = addFogAtDistance(shading, hitDistance);
+  return withFog;
+}
+
+bool rayCast(Ray ray, float &hitDistance)
+{
+  float step = 0.1f;
+  const float minDistance = 10;
+  const float maxDistance = 100.0f;
+  for (float t = minDistance; t < maxDistance; t += step)
+  {
+    step *= 1.01;
+    const Vector3 p = ray.position + ray.direction * t;
+    if (p.y < surfaceHeightAtPoint(p.x, p.z))
     {
-      closest.distance = dist;
-      closest.sphereIndex = i;
+      hitDistance = t - 0.5f * step;
+      return true;
     }
   }
-  return closest;
+  return false;
 };
-
-Color trace(Ray ray, bool depth);
-Color surface(Ray ray, Sphere object, Vector3 intersection, Vector3 normal)
-{
-  float lambertAmount = 0;
-  Color result = {0, 0, 0};
-
-  if (object.lambert > 0)
-  {
-    for (int i = 0; i < sizeof(lights) / sizeof(Vector3); i++)
-    {
-      Vector3 lightPoint = lights[i];
-
-      float contribution = dotProduct(normalize(lightPoint - intersection), normal);
-      if (contribution > 0)
-        lambertAmount += contribution;
-    }
-  }
-
-  if (object.specular > 0)
-  {
-    Ray reflectedRay = {
-        intersection,
-        reflectThrough(ray.direction, normal)};
-    Color reflectedColor = trace(reflectedRay, true);
-
-    result = result + (reflectedColor * object.specular);
-  }
-
-  lambertAmount = lambertAmount > 1 ? 1 : lambertAmount;
-
-  return result + (object.color * (lambertAmount * object.lambert)) + (object.color * object.ambient);
-}
-
-Vector3 sphereNormal(Sphere sphere, Vector3 pos)
-{
-  return normalize(pos - sphere.position);
-}
 
 Color trace(Ray ray, bool depth)
 {
   if (depth)
   {
-    return Color::white;
+    return Color::sky;
   }
 
-  Hit hit = rayCast(ray);
-  if (hit.distance == NO_HIT)
+  float hitDistance;
+  if (!rayCast(ray, hitDistance))
   {
-    return Color::white;
+    return Color::sky;
   }
 
-  Vector3 intersection = ray.position + scale(ray.direction, hit.distance);
-  return surface(ray, objects[hit.sphereIndex], intersection, sphereNormal(objects[hit.sphereIndex], intersection));
+  return colorAtTerrainPoint(ray, hitDistance);
 };
 
-static int SIZE = 500;
+static int SIZE = 240;
 
 #ifdef __cplusplus
 extern "C"
@@ -191,8 +239,8 @@ extern "C"
     float pixelHeight = cameraheight / (SIZE - 1);
 
     int pos = index / 4;
-    int x = pos / SIZE;
-    int y = pos % SIZE;
+    int x = pos % SIZE;
+    int y = SIZE - pos / SIZE;
     Vector3 xComp = scale(localRight, (x * pixelWidth) - halfWidth);
     Vector3 yComp = scale(localUp, (y * pixelHeight) - halfHeight);
 
@@ -201,6 +249,8 @@ extern "C"
         .direction = normalize(eyeVector + xComp + yComp)};
 
     Color result = trace(ray, false);
+    //Color cc = {50, 50, 50};
+    //Color result = cc * noise(x * 0.1, y * 0.1);
 
     switch (index % 4)
     {
