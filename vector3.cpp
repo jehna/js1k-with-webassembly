@@ -31,6 +31,15 @@ struct Vector3
         z - value.z};
     return result;
   };
+
+  Vector3 operator*(const float &value) const
+  {
+    Vector3 result = {
+        x * value,
+        y * value,
+        z * value};
+    return result;
+  };
 };
 
 Vector3 Vector3::up = {0., 1., 0.};
