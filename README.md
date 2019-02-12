@@ -28,7 +28,7 @@ Note that you should have Emscripten installed and available at your path.
 
 This js1k demo currently
 
-- Draws a clunky ball with ray tracing
+- Draws a mountain view on html canvas
 - Compiles c++ code to Webassembly
 - Has a development pipeline to code in c, c++ or .wat and compile it down to
   binary webassembly, which is base64 encoded to run in a js1k entry.
