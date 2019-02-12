@@ -1,6 +1,8 @@
 #include "vector3.cpp"
 #include <emscripten/emscripten.h>
 
+static int SIZE = 240;
+
 struct Ray
 {
   Vector3 position;
@@ -144,10 +146,10 @@ float coolnoise(float x, float y)
 
 float surfaceHeightAtPoint(float x, float y)
 {
-  return coolnoise(x, y) * 20;
+  return coolnoise(x, y) * 20 - 7.5;
 }
 
-const float eps = 0.01;
+const float eps = 0.001;
 
 Color getShadingAtPosition(Vector3 position, Vector3 normal)
 {
@@ -181,7 +183,7 @@ Color colorAtTerrainPoint(Ray ray, float hitDistance)
   return withFog;
 }
 
-bool rayCast(Ray ray, float &hitDistance)
+bool rayCast(Ray ray, float &hitDistance, float &height)
 {
   float step = 0.1f;
   const float minDistance = 10;
@@ -190,7 +192,9 @@ bool rayCast(Ray ray, float &hitDistance)
   {
     step *= 1.01;
     const Vector3 p = ray.position + ray.direction * t;
-    if (p.y < surfaceHeightAtPoint(p.x, p.z))
+    height = surfaceHeightAtPoint(p.x, p.z);
+
+    if (p.y < height)
     {
       hitDistance = t - 0.5f * step;
       return true;
@@ -210,6 +214,11 @@ Color skyColor(int x, int y)
   return showStar ? Color::white : Color::sky;
 }
 
+Color waterColor(int x, int y)
+{
+  return lerp(Color::white, skyColor(x, SIZE - y), noise(x * 0.1, y * 0.4) * 0.2);
+}
+
 Color trace(Ray ray, int x, int y, bool depth)
 {
   if (depth)
@@ -218,15 +227,20 @@ Color trace(Ray ray, int x, int y, bool depth)
   }
 
   float hitDistance;
-  if (!rayCast(ray, hitDistance))
+  float heightAtHit;
+  if (!rayCast(ray, hitDistance, heightAtHit))
   {
     return skyColor(x, y);
   }
 
+  if (heightAtHit < 6.0f)
+  {
+    // Hit water
+    return waterColor(x, y);
+  }
+
   return colorAtTerrainPoint(ray, hitDistance);
 };
-
-static int SIZE = 240;
 
 #ifdef __cplusplus
 extern "C"
