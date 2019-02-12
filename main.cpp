@@ -17,6 +17,7 @@ struct Color
 
   static Color white;
   static Color sky;
+  static Color black;
 
   Color operator*(const float &value) const
   {
@@ -43,7 +44,8 @@ Color lerp(Color a, Color b, float percent)
 }
 
 Color Color::white = {255, 255, 255};
-Color Color::sky = {5, 35, 84};
+Color Color::sky = {14, 26, 68};
+Color Color::black = {0, 0, 0};
 
 struct Camera
 {
@@ -55,9 +57,9 @@ struct Camera
 };
 
 Camera Camera::main = {
-    .position = {0, 30, 0},
+    .position = {40, 15, 20},
     .fieldOfView = 45.,
-    .direction = {10, 25, 10}};
+    .direction = {50, 15, 30}};
 
 struct Sphere
 {
@@ -131,22 +133,20 @@ float noise(const float x, const float y)
   float x2 = lerp(grad(ab, xx, yy - 1),
                   grad(bb, xx - 1, yy - 1),
                   fx);
-  float value = lerp(x1, x2, fy);
+  float value = (lerp(x1, x2, fy) + 1) / 2;
 
-  return (value + 1) / 2;
+  return value * value;
 }
 
 float coolnoise(float x, float y)
 {
-  return noise(x / 20, y / 20) +
-         noise(x / 10, y / 10) / 2 +
-         noise(x / 5, y / 5) / 6 +
-         noise(x / 2, y / 2) / 20;
+  float mountains = noise(x / 30, y / 30) * 1.5;
+  return (mountains * mountains) + noise(x / 10, y / 10) / 4.0f + noise(x / 4, y / 4) / 10.0f + noise(x * 2.5, y * 2.5) / 200.0f;
 }
 
 float surfaceHeightAtPoint(float x, float y)
 {
-  return coolnoise(x, y) * 20 - 7.5;
+  return coolnoise(x, y) * 20;
 }
 
 const float eps = 0.001;
@@ -156,8 +156,10 @@ Color getShadingAtPosition(Vector3 position, Vector3 normal)
   const Vector3 sun = {-1, -0.5, 0};
   const Vector3 v3Intensity = sun - normal;
   const float intensity = dotProduct(v3Intensity, v3Intensity);
-  const Color terrainColor = {100, 20, 20};
-  return terrainColor * (intensity * intensity / 3);
+  const Color mountainColor = {19, 45, 38};
+  const Color snowColor = {244, 247, 255};
+  const Color terrainColor = lerp(snowColor, mountainColor, (position.y - 10) / 20);
+  return terrainColor * (intensity * intensity / 1.5);
 }
 
 Vector3 normalAtPosition(Vector3 position)
@@ -210,13 +212,13 @@ bool threshold(const float value, const float threshold)
 
 Color skyColor(int x, int y)
 {
-  bool showStar = threshold(noise(x * 0.2, y * 0.2), 0.9);
+  bool showStar = threshold(noise(x * 0.2, y * 0.2), 0.8);
   return showStar ? Color::white : Color::sky;
 }
 
 Color waterColor(int x, int y)
 {
-  return lerp(Color::white, skyColor(x, SIZE - y), noise(x * 0.1, y * 0.4) * 0.2);
+  return lerp(Color::black, skyColor(x, SIZE - y), noise(x * 0.1, y * 0.4) * 0.8);
 }
 
 Color trace(Ray ray, int x, int y, bool depth)
@@ -233,7 +235,7 @@ Color trace(Ray ray, int x, int y, bool depth)
     return skyColor(x, y);
   }
 
-  if (heightAtHit < 6.0f)
+  if (heightAtHit < 4.0f)
   {
     // Hit water
     return waterColor(x, y);
