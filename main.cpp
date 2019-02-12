@@ -149,7 +149,7 @@ float surfaceHeightAtPoint(float x, float y)
   return coolnoise(x, y) * 20;
 }
 
-const float eps = 0.001;
+const float eps = 0.30;
 
 Color getShadingAtPosition(Vector3 position, Vector3 normal)
 {
