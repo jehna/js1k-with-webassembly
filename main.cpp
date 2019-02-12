@@ -199,7 +199,18 @@ bool rayCast(Ray ray, float &hitDistance)
   return false;
 };
 
-Color trace(Ray ray, bool depth)
+bool threshold(const float value, const float threshold)
+{
+  return value > threshold;
+}
+
+Color skyColor(int x, int y)
+{
+  bool showStar = threshold(noise(x * 0.2, y * 0.2), 0.9);
+  return showStar ? Color::white : Color::sky;
+}
+
+Color trace(Ray ray, int x, int y, bool depth)
 {
   if (depth)
   {
@@ -209,7 +220,7 @@ Color trace(Ray ray, bool depth)
   float hitDistance;
   if (!rayCast(ray, hitDistance))
   {
-    return Color::sky;
+    return skyColor(x, y);
   }
 
   return colorAtTerrainPoint(ray, hitDistance);
@@ -248,9 +259,7 @@ extern "C"
         .position = Camera::main.position,
         .direction = normalize(eyeVector + xComp + yComp)};
 
-    Color result = trace(ray, false);
-    //Color cc = {50, 50, 50};
-    //Color result = cc * noise(x * 0.1, y * 0.1);
+    Color result = trace(ray, x, y, false);
 
     switch (index % 4)
     {
